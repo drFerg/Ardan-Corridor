@@ -100,22 +100,26 @@ PROCESS_THREAD(hallway_lights, ev, data)
     /* Set a timer for when to turn off */
     ctimer_set(&ct, 3 * CLOCK_SECOND, &lightOff, NULL);
     /* Alert neighbours behind and ahead */
-
+  printf("my addr: %d - %d\n", linkaddr_node_addr.u8[0], linkaddr_node_addr.u8[1]);
     if (direction != 0) {
       //packetbuf_copyfrom("Hello", 5);
       addr.u8[0] = linkaddr_node_addr.u8[0] + direction;
       addr.u8[1] = 0;
-      unicast_send(&uc, &addr);
+      int s = unicast_send(&uc, &addr);
+      printf("Sent1: %d - %d\n", s, addr.u8[0]);
 			direction = 0;
     }
  		else {
 			addr.u8[0] = linkaddr_node_addr.u8[0] + 1;
       addr.u8[1] = 0;
-      unicast_send(&uc, &addr);
+      int s = unicast_send(&uc, &addr);
+      printf("Sent2: %d - %d\n", s, addr.u8[0]);
 			addr.u8[0] = linkaddr_node_addr.u8[0] - 1;
-      unicast_send(&uc, &addr);
+      s = unicast_send(&uc, &addr);
+      printf("Sent3: %d - %d\n", s, addr.u8[0]);
+
 		}
-  }	
+  }
 
   PROCESS_END();
 }
