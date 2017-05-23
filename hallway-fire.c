@@ -53,10 +53,17 @@ static struct ctimer ct;
 static int direction = 0;
 //static int layout = [-1, 0, 1, 2];
 /*---------------------------------------------------------------------------*/
+static void lightOn(void *data);
+
 static void lightOff (void *data) {
   leds_off(LEDS_RED);
   leds_off(LEDS_GREEN);
-	direction = 0;
+  ctimer_set(&ct, 0.5 * CLOCK_SECOND, &lightOn, NULL);
+}
+
+static void lightOn (void *data) {
+  leds_on(LEDS_RED);
+  ctimer_set(&ct, 0.5 * CLOCK_SECOND, &lightOff, NULL);
 }
 
 static void
@@ -99,7 +106,7 @@ PROCESS_THREAD(hallway_lights, ev, data)
     /* Turn on my light */
     leds_on(LEDS_RED);
     /* Set a timer for when to turn off */
-    ctimer_set(&ct, 3 * CLOCK_SECOND, &lightOff, NULL);
+    ctimer_set(&ct, 0.5 * CLOCK_SECOND, &lightOff, NULL);
     /* Alert neighbours behind and ahead */
   printf("my addr: %d - %d\n", linkaddr_node_addr.u8[0], linkaddr_node_addr.u8[1]);
     if (direction != 0) {
