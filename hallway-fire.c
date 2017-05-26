@@ -46,11 +46,16 @@
 
 #include <stdio.h>
 
+#define PATH 0
+#define FIRE 1
+#define EXIT 2
+
 /*---------------------------------------------------------------------------*/
 PROCESS(hallway_lights, "Hallway test");
 AUTOSTART_PROCESSES(&hallway_lights);
-static struct ctimer ct;
+static struct ctimer ct, health_timer;
 static int direction = 0;
+int greenStatus = 0;
 //static int layout = [-1, 0, 1, 2];
 /*---------------------------------------------------------------------------*/
 static void lightOn(void *data);
@@ -66,6 +71,13 @@ static void lightOn (void *data) {
   ctimer_set(&ct, 0.5 * CLOCK_SECOND, &lightOff, NULL);
 }
 
+static void flashGreen() {
+  greenStatus = !greenStatus;
+  if (greenStatus) leds_on(LEDS_GREEN);
+  else leds_off(LEDS_GREEN);
+  ctimer_set(&health_timer, 1.0 * CLOCK_SECOND, flashGreen, NULL);
+}
+
 static void
 recv_uc(struct unicast_conn *c, const linkaddr_t *from)
 {
@@ -79,7 +91,7 @@ recv_uc(struct unicast_conn *c, const linkaddr_t *from)
 		direction = -1;
 	}
    /* Set a timer for when to turn off */
-   ctimer_set(&ct, 3 * CLOCK_SECOND, &lightOff, NULL);
+   ctimer_set(&ct, 0.5 * CLOCK_SECOND, &lightOff, NULL);
 }
 
 
@@ -96,37 +108,26 @@ PROCESS_THREAD(hallway_lights, ev, data)
   SENSORS_ACTIVATE(button_sensor);
 
   unicast_open(&uc, 146, &unicast_callbacks);
-
+  flashGreen();
   while(1) {
 
     linkaddr_t addr;
     PROCESS_WAIT_EVENT_UNTIL(ev == sensors_event &&
 			     data == &button_sensor);
-
+    ctimer_stop(&health_timer);
     /* Turn on my light */
     leds_on(LEDS_RED);
     /* Set a timer for when to turn off */
     ctimer_set(&ct, 0.5 * CLOCK_SECOND, &lightOff, NULL);
     /* Alert neighbours behind and ahead */
-  printf("my addr: %d - %d\n", linkaddr_node_addr.u8[0], linkaddr_node_addr.u8[1]);
-    if (direction != 0) {
-      //packetbuf_copyfrom("Hello", 5);
-      addr.u8[0] = linkaddr_node_addr.u8[0] + direction;
-      addr.u8[1] = 0;
-      int s = unicast_send(&uc, &addr);
-      printf("Sent1: %d - %d\n", s, addr.u8[0]);
-			direction = 0;
-    }
- 		else {
-			addr.u8[0] = linkaddr_node_addr.u8[0] + 1;
-      addr.u8[1] = 0;
-      int s = unicast_send(&uc, &addr);
-      printf("Sent2: %d - %d\n", s, addr.u8[0]);
-			addr.u8[0] = linkaddr_node_addr.u8[0] - 1;
-      s = unicast_send(&uc, &addr);
-      printf("Sent3: %d - %d\n", s, addr.u8[0]);
+    printf("my addr: %d - %d\n", linkaddr_node_addr.u8[0], linkaddr_node_addr.u8[1]);
+    uint8_t data[] = {FIRE};
+    packetbuf_copyfrom(data, 1);
+    addr.u8[0] = linkaddr_node_addr.u8[0] + direction;
+    addr.u8[1] = 0;
+    int s = unicast_send(&uc, &addr);
+    printf("Sent1: %d - %d\n", s, addr.u8[0]);
 
-		}
   }
 
   PROCESS_END();
