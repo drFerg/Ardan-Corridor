@@ -53,45 +53,53 @@
 /*---------------------------------------------------------------------------*/
 PROCESS(hallway_lights, "Hallway test");
 AUTOSTART_PROCESSES(&hallway_lights);
-static struct ctimer ct, health_timer;
+static struct ctimer health_timer, alarm_timer;
 static int direction = 0;
 int greenStatus = 0;
+int redStatus = 0;
+int alarmed = 0;
 //static int layout = [-1, 0, 1, 2];
 /*---------------------------------------------------------------------------*/
-static void lightOn(void *data);
 
-static void lightOff (void *data) {
-  leds_off(LEDS_RED);
-  leds_off(LEDS_GREEN);
-  ctimer_set(&ct, 0.5 * CLOCK_SECOND, &lightOn, NULL);
+static void flashRed () {
+  redStatus = !redStatus;
+  if (redStatus) leds_on(LEDS_RED);
+  else leds_off(LEDS_RED);
+  ctimer_set(&alarm_timer, 0.5 * CLOCK_SECOND, &flashRed, NULL);
 }
 
-static void lightOn (void *data) {
-  leds_on(LEDS_RED);
-  ctimer_set(&ct, 0.5 * CLOCK_SECOND, &lightOff, NULL);
-}
+
 
 static void flashGreen() {
   greenStatus = !greenStatus;
   if (greenStatus) leds_on(LEDS_GREEN);
   else leds_off(LEDS_GREEN);
-  ctimer_set(&health_timer, 1.0 * CLOCK_SECOND, flashGreen, NULL);
+  ctimer_set(&health_timer, 1.0 * CLOCK_SECOND, &flashGreen, NULL);
 }
 
+
+static void soundAlarm() {
+  if (!alarmed) {
+    flashRed();
+    alarmed = 1;
+  }
+}
 static void
 recv_uc(struct unicast_conn *c, const linkaddr_t *from)
 {
-  printf("unicast message received from %d.%d\n",
- 		from->u8[0], from->u8[1]);
- 	leds_on(LEDS_GREEN);
-	leds_on(LEDS_RED);
-	if (from->u8[0] + 1 == linkaddr_node_addr.u8[0]) {
-		direction = 1;
-	} else if (from->u8[0] - 1 == linkaddr_node_addr.u8[0]) {
-		direction = -1;
-	}
-   /* Set a timer for when to turn off */
-   ctimer_set(&ct, 0.5 * CLOCK_SECOND, &lightOff, NULL);
+  printf("unicast message received from %d.%d - %d (%d)\n",
+ 		from->u8[0], from->u8[1], ((uint8_t*)packetbuf_dataptr())[0], packetbuf_datalen());
+  if (((uint8_t*)packetbuf_dataptr())[0] == FIRE) {
+  	if (from->u8[0] + 1 == linkaddr_node_addr.u8[0]) {
+  		direction = 1;
+      leds_on(LEDS_GREEN);
+  	} else if (from->u8[0] - 1 == linkaddr_node_addr.u8[0]) {
+  		direction = -1;
+      leds_on(LEDS_BLUE);
+  	}
+     /* Set a timer for when to turn off */
+     soundAlarm();
+   }
 }
 
 
@@ -108,24 +116,28 @@ PROCESS_THREAD(hallway_lights, ev, data)
   SENSORS_ACTIVATE(button_sensor);
 
   unicast_open(&uc, 146, &unicast_callbacks);
-  flashGreen();
+  //flashGreen();
   while(1) {
 
     linkaddr_t addr;
     PROCESS_WAIT_EVENT_UNTIL(ev == sensors_event &&
 			     data == &button_sensor);
-    ctimer_stop(&health_timer);
-    /* Turn on my light */
-    leds_on(LEDS_RED);
-    /* Set a timer for when to turn off */
-    ctimer_set(&ct, 0.5 * CLOCK_SECOND, &lightOff, NULL);
+    //ctimer_stop(&health_timer);
+    leds_on(LEDS_GREEN);
+    /* Flash my siren/light */
+    soundAlarm();
+
     /* Alert neighbours behind and ahead */
     printf("my addr: %d - %d\n", linkaddr_node_addr.u8[0], linkaddr_node_addr.u8[1]);
     uint8_t data[] = {FIRE};
     packetbuf_copyfrom(data, 1);
-    addr.u8[0] = linkaddr_node_addr.u8[0] + direction;
+    addr.u8[0] = linkaddr_node_addr.u8[0] + 1;
     addr.u8[1] = 0;
     int s = unicast_send(&uc, &addr);
+    addr.u8[0] = linkaddr_node_addr.u8[0] - 1;
+    addr.u8[1] = 0;
+    packetbuf_copyfrom(data, 1);
+    s = unicast_send(&uc, &addr);
     printf("Sent1: %d - %d\n", s, addr.u8[0]);
 
   }
