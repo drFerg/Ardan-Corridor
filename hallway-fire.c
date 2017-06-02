@@ -58,6 +58,7 @@ static int direction = 0;
 int greenStatus = 0;
 int redStatus = 0;
 int alarmed = 0;
+int nodeType = {EXIT, PATH, EXIT};
 //static int layout = [-1, 0, 1, 2];
 /*---------------------------------------------------------------------------*/
 
