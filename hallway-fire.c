@@ -100,6 +100,7 @@ recv_uc(struct unicast_conn *c, const linkaddr_t *from)
   	}
      /* Set a timer for when to turn off */
      soundAlarm();
+     send_alert();
    }
 }
 
@@ -107,7 +108,24 @@ recv_uc(struct unicast_conn *c, const linkaddr_t *from)
 static const struct unicast_callbacks unicast_callbacks = {recv_uc};
 static struct unicast_conn uc;
 
+void send_alert() {
+  /* Alert neighbours behind and ahead */
+  linkaddr_t addr;
+  printf("my addr: %d - %d\n", linkaddr_node_addr.u8[0], linkaddr_node_addr.u8[1]);
+  uint8_t data[] = {FIRE};
+  packetbuf_copyfrom(data, 1);
+  addr.u8[0] = linkaddr_node_addr.u8[0] + 1;
+  addr.u8[1] = 0;
+  int s = unicast_send(&uc, &addr);
+  printf("Sent1: %d - %d\n", s, addr.u8[0]);
 
+  // addr.u8[0] = linkaddr_node_addr.u8[0] - 1;
+  // addr.u8[1] = 0;
+  // packetbuf_copyfrom(data, 1);
+  // s = unicast_send(&uc, &addr);
+  // printf("Sent2: %d - %d\n", s, addr.u8[0]);
+
+}
 /*---------------------------------------------------------------------------*/
 PROCESS_THREAD(hallway_lights, ev, data)
 {
