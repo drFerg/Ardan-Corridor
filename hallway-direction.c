@@ -50,7 +50,7 @@
 PROCESS(hallway_lights, "Hallway test");
 AUTOSTART_PROCESSES(&hallway_lights);
 static struct ctimer ct;
-static int direction = 0;
+int direction = 0;
 //static int layout = [-1, 0, 1, 2];
 /*---------------------------------------------------------------------------*/
 static void lightOff (void *data) {
@@ -62,10 +62,11 @@ static void lightOff (void *data) {
 static void
 recv_uc(struct unicast_conn *c, const linkaddr_t *from)
 {
-  printf("unicast message received from %d.%d\n",
- 		from->u8[0], from->u8[1]);
+
  	leds_on(LEDS_GREEN);
 	leds_on(LEDS_RED);
+  printf("unicast message received from %d.%d\n",
+ 		from->u8[0], from->u8[1]);
 	if (from->u8[0] + 1 == linkaddr_node_addr.u8[0]) {
 		direction = 1;
 	} else if (from->u8[0] - 1 == linkaddr_node_addr.u8[0]) {
@@ -89,10 +90,10 @@ PROCESS_THREAD(hallway_lights, ev, data)
   SENSORS_ACTIVATE(button_sensor);
 
   unicast_open(&uc, 146, &unicast_callbacks);
-
+  linkaddr_t addr;
   while(1) {
 
-    linkaddr_t addr;
+
     PROCESS_WAIT_EVENT_UNTIL(ev == sensors_event &&
 			     data == &button_sensor);
 
